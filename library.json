@@ -1,0 +1,35 @@
+{
+  "$schema": "https://raw.githubusercontent.com/platformio/platformio-core/develop/platformio/assets/schema/library.json",
+  "name": "esp8266-http-server-async",
+  "version": "0.1.0",
+  "description": "Bounded HTTP server library for ESP8266 RTOS SDK built on esp8266-tcp-transport.",
+  "keywords": [
+    "esp8266",
+    "http",
+    "server",
+    "rtos",
+    "tcp"
+  ],
+  "frameworks": [
+    "esp8266-rtos-sdk"
+  ],
+  "platforms": [
+    "espressif8266",
+    "native"
+  ],
+  "headers": [
+    "http_server.h",
+    "http_request.h",
+    "http_response.h",
+    "http_types.h",
+    "http_config.h"
+  ],
+  "dependencies": {
+    "esp8266-tcp-transport": "*"
+  },
+  "build": {
+    "includeDir": "include",
+    "srcDir": "src",
+    "libArchive": false
+  }
+}
