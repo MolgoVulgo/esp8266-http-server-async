@@ -16,3 +16,5 @@ Headers publics :
 `HttpResponse::send()` et `end()` ne peuvent être appelés qu'une fois. Un second envoi retourne `HttpErr::ALREADY_SENT`. `Connection: close` et `Content-Length` sont toujours générés.
 
 `serve_static()` est disponible si `HTTP_ENABLE_STATIC_FILES == 1`. `HttpFsBackend::exists()` est optionnel ; `open()` reste la source de vérité.
+
+En cas de requête malformée, le moteur répond `400 Bad Request` et remonte `HttpErr::PARSE_ERROR`. En cas d’incohérence de lecture fichier statique, il répond `500 Internal Server Error` et remonte `HttpErr::FS_ERROR`.

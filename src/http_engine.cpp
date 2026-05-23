@@ -155,14 +155,16 @@ HttpErr HttpEngine::dispatch(int slot)
                     }
                     if (n > to_read) {
                         file.route->backend->close(file.route->backend->ctx, file.handle);
-                        return send_error(slot, 500, "Internal Server Error");
+                        HttpErr err = send_error(slot, 500, "Internal Server Error");
+                        return err == HttpErr::OK ? HttpErr::FS_ERROR : err;
                     }
                     offset += n;
                     body_read += n;
                 }
                 if (body_read != file.size) {
                     file.route->backend->close(file.route->backend->ctx, file.handle);
-                    return send_error(slot, 500, "Internal Server Error");
+                    HttpErr err = send_error(slot, 500, "Internal Server Error");
+                    return err == HttpErr::OK ? HttpErr::FS_ERROR : err;
                 }
                 slots_[slot].tx_len = offset;
                 slots_[slot].close_after_send = true;
@@ -215,7 +217,8 @@ HttpErr HttpEngine::on_data(int slot, const uint8_t *data, size_t len)
     }
     if (r == HttpParserResult::ERROR) {
         HTTP_DBG("parse error slot=%d", slot);
-        return send_error(slot, 400, "Bad Request");
+        HttpErr err = send_error(slot, 400, "Bad Request");
+        return err == HttpErr::OK ? HttpErr::PARSE_ERROR : err;
     }
     if (r == HttpParserResult::DONE) {
         HTTP_DBG("parse done slot=%d", slot);

@@ -499,6 +499,7 @@ enum class HttpErr : int8_t {
 ```
 
 Ces erreurs ne remplacent pas les codes HTTP. Elles servent au contrat d’API interne/public côté bibliothèque.
+`TIMEOUT` et `NOT_STARTED` restent réservés en V1 (pas de câblage runtime).
 
 ### 6.4 Serveur HTTP
 

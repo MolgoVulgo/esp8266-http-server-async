@@ -41,6 +41,11 @@ bool run_test_engine()
     http_transport_mock_close(&mock);
 
     http_transport_mock_init(&mock);
+    CHECK_EQ_INT(http_transport_mock_rx(&mock, "GET /bad HTTP/1.1\r\nContent-Length: nope\r\n\r\n"), HttpErr::PARSE_ERROR);
+    CHECK_CONTAINS(http_transport_mock_tx(&mock), "HTTP/1.1 400 Bad Request");
+    http_transport_mock_close(&mock);
+
+    http_transport_mock_init(&mock);
     CHECK_EQ_INT(http_transport_mock_rx(&mock, "POST /x HTTP/1.1\r\nContent-Length: 2048\r\n\r\n"), HttpErr::OK);
     CHECK_CONTAINS(http_transport_mock_tx(&mock), "HTTP/1.1 413 Payload Too Large");
     http_transport_mock_close(&mock);

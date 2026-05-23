@@ -118,7 +118,7 @@ bool run_test_static_path()
 
     http_transport_mock_init(&mock);
     CHECK_EQ_INT(mock.engine.add_static("/static", "/www", &backend, "index.html"), HttpErr::OK);
-    CHECK_EQ_INT(http_transport_mock_rx(&mock, "GET /static/short.txt HTTP/1.1\r\n\r\n"), HttpErr::OK);
+    CHECK_EQ_INT(http_transport_mock_rx(&mock, "GET /static/short.txt HTTP/1.1\r\n\r\n"), HttpErr::FS_ERROR);
     CHECK_CONTAINS(http_transport_mock_tx(&mock), "HTTP/1.1 500 Internal Server Error");
     http_transport_mock_close(&mock);
 #endif

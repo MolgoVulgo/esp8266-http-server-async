@@ -24,10 +24,10 @@ enum class HttpErr : int8_t {
     HEADER_FULL     = -4,
     SEND_FAILED     = -5,
     PARSE_ERROR     = -6,
-    TIMEOUT         = -7,
+    TIMEOUT         = -7,   // Reserved for future HTTP phase timeouts.
     FS_ERROR        = -8,
     ALREADY_SENT    = -9,
-    NOT_STARTED     = -10,
+    NOT_STARTED     = -10,  // Reserved for APIs that require active server state.
 };
 
 struct HttpRouteParam {

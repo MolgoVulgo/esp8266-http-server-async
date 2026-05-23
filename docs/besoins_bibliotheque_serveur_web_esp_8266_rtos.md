@@ -144,7 +144,7 @@ enum class HttpErr : int8_t {
     TIMEOUT         = -7,   // réservé pour timeouts HTTP par phase futurs
     FS_ERROR        = -8,   // erreur d'accès fichier (lecture, ouverture)
     ALREADY_SENT    = -9,   // tentative d'envoi après réponse déjà émise
-    NOT_STARTED     = -10,  // serveur non démarré
+    NOT_STARTED     = -10,  // réservé pour API futures nécessitant un serveur démarré
 };
 
 // --- Résultat de matching de route ---

@@ -27,7 +27,7 @@ static void on_connect(tcp_conn_t *conn)
 
     int slot = g_engine->alloc_slot(conn);
     if (slot < 0) {
-        HTTP_DBG("connect refused no slot");
+        HTTP_DBG("connect refused err=%d", (int)HttpErr::NO_SLOT);
         tcp_close(conn);
         return;
     }
@@ -48,7 +48,10 @@ static void on_data(tcp_conn_t *conn, const uint8_t *buf, size_t len)
         return;
     }
     HTTP_DBG("rx slot=%d len=%u", slot, (unsigned)len);
-    g_engine->on_data(slot, buf, len);
+    HttpErr err = g_engine->on_data(slot, buf, len);
+    if (err != HttpErr::OK) {
+        HTTP_DBG("on_data slot=%d err=%d", slot, (int)err);
+    }
     if (g_engine->tx_len(slot) > 0) {
         size_t sent = tcp_send(conn, g_engine->tx_data(slot), g_engine->tx_len(slot));
         HTTP_DBG("tx slot=%d len=%u sent=%u",
