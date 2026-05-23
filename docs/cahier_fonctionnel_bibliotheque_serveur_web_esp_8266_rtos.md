@@ -336,7 +336,7 @@ Règles :
 - body limité par `HTTP_BODY_MAX_SIZE` ;
 - réception possible par chunks internes ;
 - rejet avec `413 Payload Too Large` si dépassement annoncé ou constaté ;
-- timeout body via `HTTP_TIMEOUT_BODY_MS` ;
+- timeout de connexion délégué au transport via `TCP_IDLE_TIMEOUT_MS` ;
 - pas d’upload de gros fichiers en V1.
 
 ### 5.11 Formulaires URL-encodés
@@ -589,9 +589,6 @@ La bibliothèque doit exposer ses paramètres critiques dans `http_config.h`.
 | `HTTP_BODY_READ_CHUNK` | `128` | Taille de lecture partielle du body |
 | `HTTP_QUERY_MAX_SIZE` | `128` | Taille maximale de query string |
 | `HTTP_FS_BLOCK_SIZE` | `512` | Taille des blocs fichier |
-| `HTTP_TIMEOUT_HEADER_MS` | `3000` | Timeout réception headers |
-| `HTTP_TIMEOUT_BODY_MS` | `5000` | Timeout réception body |
-| `HTTP_TIMEOUT_IDLE_MS` | `5000` | Timeout client silencieux |
 | `HTTP_RESP_HEADER_MAX` | `6` | Nombre maximal de headers réponse |
 | `HTTP_ENABLE_STATIC_FILES` | `1` | Activation fichiers statiques |
 | `HTTP_ENABLE_JSON_HELPERS` | `1` | Activation helpers JSON |
@@ -674,29 +671,14 @@ Les états exacts peuvent différer dans l’implémentation, mais le comporteme
 
 ## 10. Gestion des timeouts
 
-### 10.1 Timeout header
+En V1.x, la couche HTTP ne maintient pas de timeout par phase.
 
-`HTTP_TIMEOUT_HEADER_MS` démarre à l’ouverture de la connexion.
+Le timeout de connexion est délégué à `esp8266-tcp-transport` via
+`TCP_IDLE_TIMEOUT_MS`. La valeur par défaut du transport est `0`, donc le
+timeout est désactivé sauf override projet.
 
-Il s’applique jusqu’à réception complète des headers, c’est-à-dire jusqu’à la ligne vide séparant headers et body.
-
-Si le timeout expire avant réception complète des headers, la connexion est fermée proprement.
-
-Aucune réponse HTTP n’est obligatoire si la requête n’est pas assez formée.
-
-### 10.2 Timeout body
-
-`HTTP_TIMEOUT_BODY_MS` démarre après réception complète des headers.
-
-Il s’applique jusqu’à réception de `Content-Length` octets.
-
-Si le timeout expire, la connexion est fermée proprement et le slot est libéré.
-
-### 10.3 Timeout idle
-
-`HTTP_TIMEOUT_IDLE_MS` s’applique à un client connecté qui n’envoie rien.
-
-Si aucune request line n’est reçue avant expiration, la connexion est fermée sans réponse HTTP.
+Les timeouts header/body avec suivi d'état HTTP et réponse `408 Request Timeout`
+sont réservés à une version ultérieure.
 
 ## 11. Robustesse et erreurs
 
@@ -709,8 +691,7 @@ La bibliothèque doit gérer sans corruption :
 - trop grand nombre de headers ;
 - `Content-Length` invalide ;
 - body trop gros ;
-- timeout header ;
-- timeout body ;
+- timeout de connexion si activé côté transport ;
 - client silencieux ;
 - client déconnecté ;
 - buffer TX saturé ;

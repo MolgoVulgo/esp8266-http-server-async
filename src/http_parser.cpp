@@ -6,6 +6,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define HTTP_SSCANF_STR2(n) #n
+#define HTTP_SSCANF_STR(n) HTTP_SSCANF_STR2(n)
+
 HttpParser::HttpParser()
 {
     reset();
@@ -116,7 +119,11 @@ bool HttpParser::parse_request_line()
     target[0] = '\0';
     version[0] = '\0';
 
-    if (sscanf(line_, "%11s %128s %15s", method, target, version) != 3) {
+    if (sscanf(line_,
+               "%11s %" HTTP_SSCANF_STR(HTTP_LINE_MAX) "s %15s",
+               method,
+               target,
+               version) != 3) {
         return false;
     }
     if (strncmp(version, "HTTP/", 5) != 0) {

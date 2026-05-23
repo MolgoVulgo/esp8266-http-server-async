@@ -25,6 +25,11 @@
 #define HTTP_HEADER_NAME_MAX 31
 #endif
 
+/* Maximum accepted request body size for POST/PUT.
+ * Independent from HTTP_RESPONSE_BUFFER_SIZE: response bodies must still fit
+ * in HTTP_RESPONSE_BUFFER_SIZE including headers. Keeping a larger request
+ * body limit is useful when handlers process data without echoing it.
+ */
 #ifndef HTTP_BODY_MAX_SIZE
 #define HTTP_BODY_MAX_SIZE 1024
 #endif
@@ -41,17 +46,11 @@
 #define HTTP_FS_BLOCK_SIZE 512
 #endif
 
-#ifndef HTTP_TIMEOUT_HEADER_MS
-#define HTTP_TIMEOUT_HEADER_MS 3000
-#endif
-
-#ifndef HTTP_TIMEOUT_BODY_MS
-#define HTTP_TIMEOUT_BODY_MS 5000
-#endif
-
-#ifndef HTTP_TIMEOUT_IDLE_MS
-#define HTTP_TIMEOUT_IDLE_MS 5000
-#endif
+/* Connection timeout is handled by esp8266-tcp-transport through
+ * TCP_IDLE_TIMEOUT_MS. The transport default is 0, so it is disabled unless
+ * the application overrides it. Per-phase HTTP timeouts need timestamps in
+ * HttpEngine slots and are reserved for a later version.
+ */
 
 #ifndef HTTP_RESP_HEADER_MAX
 #define HTTP_RESP_HEADER_MAX 6
@@ -82,6 +81,9 @@
 #define HTTP_ENABLE_JSON_HELPERS 1
 #endif
 
+/* Route parameters are reserved for a later version. In V1.x, route_param()
+ * always returns false and changing these values has no behavior effect.
+ */
 #ifndef HTTP_ENABLE_ROUTE_PARAMS
 #define HTTP_ENABLE_ROUTE_PARAMS 0
 #endif

@@ -69,6 +69,7 @@ HttpRouteResult HttpRouter::resolve(HttpMethod method,
         match.count = 0;
         if (routes_[i].matcher(routes_[i].path, path, &match)) {
             path_found = true;
+            break;
         }
     }
 

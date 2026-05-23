@@ -141,7 +141,7 @@ enum class HttpErr : int8_t {
     HEADER_FULL     = -4,   // nombre maximal de headers de réponse atteint (HTTP_RESP_HEADER_MAX)
     SEND_FAILED     = -5,   // erreur d'écriture dans le buffer TX transport
     PARSE_ERROR     = -6,   // requête HTTP malformée
-    TIMEOUT         = -7,   // timeout header ou body dépassé
+    TIMEOUT         = -7,   // réservé pour timeouts HTTP par phase futurs
     FS_ERROR        = -8,   // erreur d'accès fichier (lecture, ouverture)
     ALREADY_SENT    = -9,   // tentative d'envoi après réponse déjà émise
     NOT_STARTED     = -10,  // serveur non démarré
@@ -509,7 +509,7 @@ Limites à prévoir :
 - taille maximale globale (`HTTP_BODY_MAX_SIZE`) ;
 - taille maximale par lecture (`HTTP_BODY_READ_CHUNK`) ;
 - rejet propre avec `413 Payload Too Large` si dépassement ;
-- abandon de la requête si timeout body dépassé (voir section 7).
+- fermeture par le transport si `TCP_IDLE_TIMEOUT_MS` est activé.
 
 L'upload de gros fichiers n'est pas un besoin V1 prioritaire.
 
@@ -673,9 +673,6 @@ La bibliothèque expose des paramètres de configuration sous forme de macros co
 | `HTTP_BODY_READ_CHUNK` | `128` | Taille d'une lecture partielle de body |
 | `HTTP_QUERY_MAX_SIZE` | `128` | Taille maximale de la query string |
 | `HTTP_FS_BLOCK_SIZE` | `512` | Taille des blocs d'envoi pour les fichiers statiques |
-| `HTTP_TIMEOUT_HEADER_MS` | `3000` | Timeout pour recevoir les headers complets (ms) |
-| `HTTP_TIMEOUT_BODY_MS` | `5000` | Timeout pour recevoir le body complet (ms) |
-| `HTTP_TIMEOUT_IDLE_MS` | `5000` | Timeout avant fermeture d'un client silencieux (ms) |
 | `HTTP_RESP_HEADER_MAX` | `6` | Nombre maximal de headers dans une réponse |
 | `HTTP_ENABLE_STATIC_FILES` | `1` | Active ou désactive les fichiers statiques |
 | `HTTP_ENABLE_JSON_HELPERS` | `1` | Active ou désactive les helpers JSON |
@@ -687,15 +684,14 @@ La bibliothèque expose des paramètres de configuration sous forme de macros co
 **Notes sur les valeurs par défaut :**
 
 - `HTTP_MAX_CLIENTS = 3` : au-delà de 3 clients simultanés avec buffers statiques par client, la RAM consommée dépasse confortablement 8 Ko rien pour la couche HTTP, ce qui est excessif pour un serveur de configuration locale.
-- `HTTP_TIMEOUT_IDLE_MS = 5000` : réduit de 10 000 à 5 000 ms. Un slot occupé 10 secondes par un client silencieux bloque un tiers des slots disponibles.
 - `HTTP_ENABLE_ROUTE_PARAMS = 0` : désactivé par défaut en V1. L'activer sans matcher dynamique ne sert à rien et coûte de la RAM.
 
 **Règles sur les timeouts :**
 
-- `HTTP_TIMEOUT_HEADER_MS` démarre dès l'ouverture de la connexion et s'applique jusqu'à réception de la ligne vide séparant headers et body.
-- `HTTP_TIMEOUT_BODY_MS` démarre dès la fin des headers et s'applique jusqu'à réception complète du body (`Content-Length` octets reçus).
-- `HTTP_TIMEOUT_IDLE_MS` s'applique à un client connecté qui n'envoie rien. Si ce timeout expire avant que la request line ait été reçue, la connexion est fermée sans réponse HTTP.
-- Un timeout dépassé entraîne la fermeture propre de la connexion et la libération du slot client. Aucune réponse HTTP n'est émise si les headers n'ont pas encore été reçus.
+- En V1.x, la bibliothèque HTTP ne définit pas de timeout par phase.
+- Le timeout de connexion dépend de `TCP_IDLE_TIMEOUT_MS` côté `esp8266-tcp-transport`.
+- La valeur par défaut du transport est `0`, donc le timeout est désactivé sauf override projet.
+- Les timeouts header/body avec réponse `408 Request Timeout` sont réservés à une version ultérieure.
 
 La configuration peut être complétée par une structure `HttpServerConfig` passée au démarrage pour les paramètres dynamiques (port, nombre de clients effectif).
 
@@ -794,9 +790,7 @@ La bibliothèque doit prévoir des tests ou validations sur :
 - header trop long → fermeture propre ;
 - dépassement `HTTP_HEADER_MAX_COUNT` → 400 Bad Request ;
 - body trop gros → 413 ;
-- timeout header dépassé → fermeture sans réponse ;
-- timeout body dépassé → fermeture sans réponse ;
-- client silencieux → fermeture après `HTTP_TIMEOUT_IDLE_MS` ;
+- client silencieux → fermeture si `TCP_IDLE_TIMEOUT_MS` est activé côté transport ;
 - `send()` appelé deux fois → `HttpErr::ALREADY_SENT` ;
 - `param()` trouvé et copié correctement depuis query string ;
 - `form_param()` trouvé et copié depuis body URL-encodé ;
@@ -862,7 +856,7 @@ La V1 est considérée utilisable si :
 - une route absente retourne `404` ;
 - une méthode invalide retourne `405` ;
 - un client lent ne bloque pas le serveur ;
-- un client silencieux est fermé après `HTTP_TIMEOUT_IDLE_MS` ;
+- un client silencieux est fermé si `TCP_IDLE_TIMEOUT_MS` est activé côté transport ;
 - `send()` appelé deux fois retourne `HttpErr::ALREADY_SENT` sans crasher ;
 - un chemin avec `../` retourne `404` sans accès FS ;
 - plusieurs clients restent bornés par `HTTP_MAX_CLIENTS` ;

@@ -137,19 +137,32 @@ HttpErr HttpEngine::dispatch(int slot)
                                       static_cast<unsigned long>(file.size));
             if (header_len > 0 && static_cast<size_t>(header_len) < sizeof(slots_[slot].tx)) {
                 size_t offset = static_cast<size_t>(header_len);
+                size_t body_read = 0;
                 if (file.size > sizeof(slots_[slot].tx) - offset) {
                     file.route->backend->close(file.route->backend->ctx, file.handle);
                     return send_error(slot, 500, "Internal Server Error");
                 }
-                while (offset < sizeof(slots_[slot].tx)) {
+                while (body_read < file.size) {
+                    size_t remaining = file.size - body_read;
+                    size_t available = sizeof(slots_[slot].tx) - offset;
+                    size_t to_read = remaining < available ? remaining : available;
                     size_t n = file.route->backend->read(file.route->backend->ctx,
                                                           file.handle,
                                                           slots_[slot].tx + offset,
-                                                          sizeof(slots_[slot].tx) - offset);
+                                                          to_read);
                     if (n == 0) {
                         break;
                     }
+                    if (n > to_read) {
+                        file.route->backend->close(file.route->backend->ctx, file.handle);
+                        return send_error(slot, 500, "Internal Server Error");
+                    }
                     offset += n;
+                    body_read += n;
+                }
+                if (body_read != file.size) {
+                    file.route->backend->close(file.route->backend->ctx, file.handle);
+                    return send_error(slot, 500, "Internal Server Error");
                 }
                 slots_[slot].tx_len = offset;
                 slots_[slot].close_after_send = true;

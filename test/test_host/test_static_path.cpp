@@ -7,10 +7,12 @@
 struct MemFile {
     const char *path;
     const char *data;
+    size_t pos;
+    size_t reported_size;
 };
 
 struct FsCtx {
-    MemFile files[3];
+    MemFile files[4];
     int open_calls;
 };
 
@@ -18,8 +20,9 @@ static void *fs_open(void *ctx, const char *path)
 {
     FsCtx *fs = reinterpret_cast<FsCtx *>(ctx);
     fs->open_calls++;
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 4; i++) {
         if (fs->files[i].path != 0 && strcmp(fs->files[i].path, path) == 0) {
+            fs->files[i].pos = 0;
             return &fs->files[i];
         }
     }
@@ -29,15 +32,18 @@ static void *fs_open(void *ctx, const char *path)
 static size_t fs_read(void *, void *handle, uint8_t *buf, size_t len)
 {
     MemFile *file = reinterpret_cast<MemFile *>(handle);
-    size_t n = strlen(file->data);
+    size_t total = strlen(file->data);
+    size_t n = total - file->pos;
     if (n > len) n = len;
-    memcpy(buf, file->data, n);
+    memcpy(buf, file->data + file->pos, n);
+    file->pos += n;
     return n;
 }
 
 static size_t fs_size(void *, void *handle)
 {
-    return strlen(reinterpret_cast<MemFile *>(handle)->data);
+    MemFile *file = reinterpret_cast<MemFile *>(handle);
+    return file->reported_size != 0 ? file->reported_size : strlen(file->data);
 }
 
 static void fs_close(void *, void *) {}
@@ -45,7 +51,7 @@ static void fs_close(void *, void *) {}
 static bool fs_exists(void *ctx, const char *path)
 {
     FsCtx *fs = reinterpret_cast<FsCtx *>(ctx);
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 4; i++) {
         if (fs->files[i].path != 0 && strcmp(fs->files[i].path, path) == 0) {
             return true;
         }
@@ -65,12 +71,18 @@ bool run_test_static_path()
 
     fs.files[0].path = "/www/a.css";
     fs.files[0].data = "body{}";
+    fs.files[0].reported_size = 0;
     fs.files[1].path = "/www/index.html";
     fs.files[1].data = "index";
+    fs.files[1].reported_size = 0;
     memset(large_file, 'x', HTTP_RESPONSE_BUFFER_SIZE);
     large_file[HTTP_RESPONSE_BUFFER_SIZE] = '\0';
     fs.files[2].path = "/www/large.txt";
     fs.files[2].data = large_file;
+    fs.files[2].reported_size = 0;
+    fs.files[3].path = "/www/short.txt";
+    fs.files[3].data = "short";
+    fs.files[3].reported_size = 100;
     fs.open_calls = 0;
 
     backend.ctx = &fs;
@@ -101,6 +113,12 @@ bool run_test_static_path()
     http_transport_mock_init(&mock);
     CHECK_EQ_INT(mock.engine.add_static("/static", "/www", &backend, "index.html"), HttpErr::OK);
     CHECK_EQ_INT(http_transport_mock_rx(&mock, "GET /static/large.txt HTTP/1.1\r\n\r\n"), HttpErr::OK);
+    CHECK_CONTAINS(http_transport_mock_tx(&mock), "HTTP/1.1 500 Internal Server Error");
+    http_transport_mock_close(&mock);
+
+    http_transport_mock_init(&mock);
+    CHECK_EQ_INT(mock.engine.add_static("/static", "/www", &backend, "index.html"), HttpErr::OK);
+    CHECK_EQ_INT(http_transport_mock_rx(&mock, "GET /static/short.txt HTTP/1.1\r\n\r\n"), HttpErr::OK);
     CHECK_CONTAINS(http_transport_mock_tx(&mock), "HTTP/1.1 500 Internal Server Error");
     http_transport_mock_close(&mock);
 #endif
