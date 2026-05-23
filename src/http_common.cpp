@@ -1,5 +1,6 @@
 #include "http_types.h"
 
+#include <ctype.h>
 #include <string.h>
 
 const char *http_method_name(HttpMethod method)
@@ -49,4 +50,36 @@ const char *http_status_reason(uint16_t status)
     case 500: return "Internal Server Error";
     default: return "OK";
     }
+}
+
+bool http_str_case_equal(const char *a, const char *b)
+{
+    if (a == 0 || b == 0) {
+        return false;
+    }
+    while (*a != '\0' && *b != '\0') {
+        if (tolower(static_cast<unsigned char>(*a)) !=
+            tolower(static_cast<unsigned char>(*b))) {
+            return false;
+        }
+        a++;
+        b++;
+    }
+    return *a == '\0' && *b == '\0';
+}
+
+bool http_str_starts_with_case(const char *s, const char *prefix)
+{
+    if (s == 0 || prefix == 0) {
+        return false;
+    }
+    while (*prefix != '\0') {
+        if (tolower(static_cast<unsigned char>(*s)) !=
+            tolower(static_cast<unsigned char>(*prefix))) {
+            return false;
+        }
+        s++;
+        prefix++;
+    }
+    return true;
 }

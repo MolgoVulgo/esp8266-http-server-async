@@ -1,5 +1,8 @@
 #include "test_host.h"
 
+#include <string.h>
+
+#include "http_config.h"
 #include "http_response.h"
 
 bool run_test_response()
@@ -36,6 +39,25 @@ bool run_test_response()
         CHECK_EQ_INT(res.set_header(name, "v"), HttpErr::OK);
     }
     CHECK_EQ_INT(res.set_header("X-Full", "v"), HttpErr::HEADER_FULL);
+
+    uint8_t body[HTTP_RESPONSE_BUFFER_SIZE + 1];
+    int exact_body_len = -1;
+    memset(body, 'x', sizeof(body));
+    for (size_t body_len = 0; body_len <= HTTP_RESPONSE_BUFFER_SIZE; body_len++) {
+        res.init(buf, sizeof(buf));
+        if (res.send(body, body_len, "text/plain") == HttpErr::OK &&
+            res.data_len() == HTTP_RESPONSE_BUFFER_SIZE) {
+            exact_body_len = static_cast<int>(body_len);
+            break;
+        }
+    }
+    CHECK_TRUE(exact_body_len >= 0);
+
+    res.init(buf, sizeof(buf));
+    CHECK_EQ_INT(res.send(body,
+                          static_cast<size_t>(exact_body_len) + 1,
+                          "text/plain"),
+                 HttpErr::SEND_FAILED);
 
     return true;
 }

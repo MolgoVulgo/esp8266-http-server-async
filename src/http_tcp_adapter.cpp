@@ -76,8 +76,8 @@ static void on_close(tcp_conn_t *conn)
 static void on_error(tcp_conn_t *conn, int err)
 {
     HTTP_DBG("error err=%d", err);
+    (void)conn;
     (void)err;
-    on_close(conn);
 }
 #endif
 

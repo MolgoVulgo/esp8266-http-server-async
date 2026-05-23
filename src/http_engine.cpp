@@ -163,6 +163,11 @@ HttpErr HttpEngine::dispatch(int slot)
         return send_error(slot, 404, "Not Found");
     }
 
+    /* HttpRouter guarantees this today; keep the guard to preserve the invariant. */
+    if (resolved.route == 0 || resolved.route->handler == 0) {
+        return send_error(slot, 500, "Internal Server Error");
+    }
+
     slots_[slot].state = HttpClientState::CALL_HANDLER;
     req.init(slots_[slot].parser.method(),
              slots_[slot].parser.path(),

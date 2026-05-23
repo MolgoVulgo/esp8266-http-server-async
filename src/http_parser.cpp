@@ -1,25 +1,10 @@
 #include "http_parser.h"
 
-#include <ctype.h>
+#include "http_common.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-static bool str_case_equal(const char *a, const char *b)
-{
-    if (a == 0 || b == 0) {
-        return false;
-    }
-    while (*a != '\0' && *b != '\0') {
-        if (tolower(static_cast<unsigned char>(*a)) !=
-            tolower(static_cast<unsigned char>(*b))) {
-            return false;
-        }
-        a++;
-        b++;
-    }
-    return *a == '\0' && *b == '\0';
-}
 
 HttpParser::HttpParser()
 {
@@ -209,7 +194,7 @@ bool HttpParser::parse_header_line()
     headers_[header_count_].value = stored_value;
     header_count_++;
 
-    if (str_case_equal(stored_name, "Content-Length")) {
+    if (http_str_case_equal(stored_name, "Content-Length")) {
         char *end = 0;
         unsigned long v = strtoul(stored_value, &end, 10);
         if (end == stored_value || *end != '\0') {
@@ -256,7 +241,7 @@ bool HttpParser::has_error() const { return error_; }
 const char *HttpParser::header(const char *name) const
 {
     for (uint8_t i = 0; i < header_count_; i++) {
-        if (str_case_equal(headers_[i].name, name)) {
+        if (http_str_case_equal(headers_[i].name, name)) {
             return headers_[i].value;
         }
     }

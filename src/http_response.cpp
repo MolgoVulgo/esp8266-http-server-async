@@ -1,24 +1,9 @@
 #include "http_response.h"
 
+#include "http_common.h"
+
 #include <stdio.h>
 #include <string.h>
-
-static bool response_case_equal(const char *a, const char *b)
-{
-    if (a == 0 || b == 0) {
-        return false;
-    }
-    while (*a != '\0' && *b != '\0') {
-        char ca = *a >= 'A' && *a <= 'Z' ? static_cast<char>(*a + 32) : *a;
-        char cb = *b >= 'A' && *b <= 'Z' ? static_cast<char>(*b + 32) : *b;
-        if (ca != cb) {
-            return false;
-        }
-        a++;
-        b++;
-    }
-    return *a == '\0' && *b == '\0';
-}
 
 HttpResponse::HttpResponse()
 {
@@ -45,7 +30,7 @@ void HttpResponse::set_status(uint16_t status)
 int HttpResponse::find_header(const char *name) const
 {
     for (uint8_t i = 0; i < header_count_; i++) {
-        if (response_case_equal(header_names_[i], name)) {
+        if (http_str_case_equal(header_names_[i], name)) {
             return i;
         }
     }

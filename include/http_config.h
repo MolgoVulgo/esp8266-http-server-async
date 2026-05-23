@@ -65,8 +65,13 @@
 #define HTTP_RESP_HEADER_VALUE_MAX 96
 #endif
 
+/* Maximum complete HTTP response size, including headers and body.
+ * Must stay <= TCP_TX_BUFFER_SIZE from esp8266-tcp-transport in V1 because
+ * the HTTP adapter sends one complete response into the transport TX buffer.
+ * Static file body capacity is roughly HTTP_RESPONSE_BUFFER_SIZE - 120 bytes.
+ */
 #ifndef HTTP_RESPONSE_BUFFER_SIZE
-#define HTTP_RESPONSE_BUFFER_SIZE 1536
+#define HTTP_RESPONSE_BUFFER_SIZE 512
 #endif
 
 #ifndef HTTP_ENABLE_STATIC_FILES

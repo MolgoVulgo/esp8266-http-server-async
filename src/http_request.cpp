@@ -1,40 +1,8 @@
 #include "http_request.h"
 
-#include <ctype.h>
 #include <string.h>
+#include "http_common.h"
 #include "http_url_decode.h"
-
-static bool case_equal(const char *a, const char *b)
-{
-    if (a == 0 || b == 0) {
-        return false;
-    }
-    while (*a != '\0' && *b != '\0') {
-        if (tolower(static_cast<unsigned char>(*a)) !=
-            tolower(static_cast<unsigned char>(*b))) {
-            return false;
-        }
-        a++;
-        b++;
-    }
-    return *a == '\0' && *b == '\0';
-}
-
-static bool starts_with_case(const char *s, const char *prefix)
-{
-    if (s == 0 || prefix == 0) {
-        return false;
-    }
-    while (*prefix != '\0') {
-        if (tolower(static_cast<unsigned char>(*s)) !=
-            tolower(static_cast<unsigned char>(*prefix))) {
-            return false;
-        }
-        s++;
-        prefix++;
-    }
-    return true;
-}
 
 HttpRequest::HttpRequest()
 {
@@ -75,7 +43,7 @@ const char *HttpRequest::header(const char *name) const
         return 0;
     }
     for (uint8_t i = 0; i < header_count_; i++) {
-        if (case_equal(headers_[i].name, name)) {
+        if (http_str_case_equal(headers_[i].name, name)) {
             return headers_[i].value;
         }
     }
@@ -140,7 +108,7 @@ bool HttpRequest::param(const char *name, char *out, size_t out_len) const
 bool HttpRequest::form_param(const char *name, char *out, size_t out_len) const
 {
     const char *content_type = header("Content-Type");
-    if (!starts_with_case(content_type, "application/x-www-form-urlencoded") ||
+    if (!http_str_starts_with_case(content_type, "application/x-www-form-urlencoded") ||
         body_ == 0 || body_len_ == 0) {
         return false;
     }
