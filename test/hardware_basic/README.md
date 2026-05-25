@@ -1,16 +1,19 @@
-# Test matériel HTTP ESP8266
+# ESP8266 HTTP Hardware Test
 
-Ce projet valide la bibliothèque HTTP sur ESP8266 RTOS SDK avec `esp8266-tcp-transport`.
+French version: [README.fr.md](README.fr.md)
 
-## Configuration Wi-Fi
+This project validates the HTTP library on ESP8266 RTOS SDK with
+`esp8266-tcp-transport`.
+
+## Wi-Fi Configuration
 
 ```bash
 cp test/hardware_basic/platformio.local.ini.example test/hardware_basic/platformio.local.ini
 ```
 
-Adapter `WIFI_SSID` et `WIFI_PASSWORD`.
+Set `WIFI_SSID` and `WIFI_PASSWORD`.
 
-## Build / upload / logs
+## Build, Upload, Monitor
 
 ```bash
 pio run -d test/hardware_basic -e esp12e
@@ -18,9 +21,9 @@ pio run -d test/hardware_basic -e esp12e -t upload
 pio device monitor -d test/hardware_basic -b 74880
 ```
 
-## Tests curl
+## Curl Checks
 
-Remplacer `<ip>` par l'adresse affichée dans le moniteur série.
+Replace `<ip>` with the address printed in the serial monitor.
 
 ```bash
 curl -v http://<ip>/
@@ -30,11 +33,11 @@ curl -v http://<ip>/missing
 curl -v -X PUT http://<ip>/
 ```
 
-Résultats attendus :
+Expected results:
 
-- `GET /` : `200 OK`
-- `GET /api/status` : JSON `200 OK`
-- `POST /api/config` avec `name` : `204 No Content`
-- route absente : `404 Not Found`
-- mauvaise méthode sur `/` : `405 Method Not Allowed`
-- chaque réponse contient `Connection: close`
+- `GET /`: `200 OK`
+- `GET /api/status`: JSON `200 OK`
+- `POST /api/config` with `name`: `204 No Content`
+- missing route: `404 Not Found`
+- wrong method on `/`: `405 Method Not Allowed`
+- every response contains `Connection: close`

@@ -1,50 +1,81 @@
 # esp8266-http-server-async
 
-Bibliothèque serveur HTTP légère pour ESP8266 RTOS SDK, au-dessus de `esp8266-tcp-transport`.
+Lightweight, bounded HTTP server library for ESP8266 RTOS SDK, built on
+`esp8266-tcp-transport`.
 
-## Contraintes V1
+This library provides a small HTTP layer for embedded configuration pages,
+local REST-style endpoints, and tiny static assets. It is not a general Web
+framework.
 
-- pas d'Arduino ;
-- pas de STL, exceptions ou RTTI dans la bibliothèque ;
-- une connexion, une requête, une réponse, puis `Connection: close` ;
-- buffers bornés par `include/http_config.h` ;
-- fichiers statiques servis via backend applicatif, sans exposer le TCP dans l'API publique.
+French documentation: [README.fr.md](README.fr.md)
 
-## Exemple minimal
+## V1 Scope
+
+- ESP8266 RTOS SDK and PlatformIO.
+- No Arduino dependency.
+- No STL, exceptions, or RTTI in the library code.
+- One TCP connection handles one HTTP request, emits one response, then closes.
+- `Connection: close` is always emitted.
+- Runtime buffers are bounded by [include/http_config.h](include/http_config.h).
+- Static files are served through an application-provided `HttpFsBackend`.
+- The public headers do not expose the TCP backend.
+
+Out of scope for V1: keep-alive, WebSocket, SSE, native TLS, large uploads,
+active dynamic route parameters, and template rendering.
+
+## Install
+
+Add the library to a PlatformIO project that targets `esp8266-rtos-sdk` and
+provides `esp8266-tcp-transport`.
+
+```bash
+platformio pkg install
+```
+
+## Minimal Example
 
 ```cpp
 #include "http_server.h"
 
+static HttpServer server(80);
+
 static void handle_root(HttpRequest &, HttpResponse &res)
 {
-    res.send_html("<h1>ok</h1>");
+    res.send_html("<!doctype html><html><body><h1>ok</h1></body></html>");
 }
 
 extern "C" void app_main(void)
 {
-    HttpServer server(80);
     server.on(HttpMethod::GET, "/", handle_root);
     server.begin();
 }
 ```
 
-## Tests host
+More examples are available in [examples](examples).
+
+## Documentation
+
+- [Documentation index](docs/README.md)
+- [API contract](docs/api.md)
+- [Function reference](docs/functions.md)
+- [Architecture](docs/architecture.md)
+- [Memory budget](docs/memory.md)
+- [Static files](docs/static-files.md)
+- [Tests](docs/tests.md)
+- [Manual test matrix](docs/manual-test-matrix.md)
+
+## Host Tests
 
 ```bash
 pio run -c test/platformio.ini
 PLATFORMIO_SETTING_ENABLE_TELEMETRY=no pio test -c test/platformio.ini
-
-g++ -std=c++11 -Iinclude -Isrc \
-  test/test_host/test_runner.cpp test/test_host/test_build.cpp \
-  test/test_host/test_url_decode.cpp test/test_host/test_parser.cpp \
-  test/test_host/test_request.cpp test/test_host/test_response.cpp \
-  test/test_host/test_router.cpp test/test_host/test_static_path.cpp \
-  test/test_host/test_mime.cpp test/test_host/http_transport_mock.cpp \
-  test/test_host/test_engine.cpp src/*.cpp \
-  -o /tmp/esp8266_http_host_tests
-/tmp/esp8266_http_host_tests
 ```
 
-## Limites V1
+## Hardware Test
 
-Pas de keep-alive, WebSocket, SSE, TLS natif, upload de gros fichiers, routes dynamiques actives ni moteur de template.
+```bash
+cp test/hardware_basic/platformio.local.ini.example test/hardware_basic/platformio.local.ini
+pio run -d test/hardware_basic -e esp12e
+pio run -d test/hardware_basic -e esp12e -t upload
+pio device monitor -d test/hardware_basic -b 74880
+```
