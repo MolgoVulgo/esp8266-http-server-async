@@ -18,6 +18,13 @@ void HttpResponse::init(uint8_t *buffer, size_t buffer_len)
     status_ = 200;
     sent_ = false;
     header_count_ = 0;
+    content_type_[0] = '\0';
+    body_kind_ = HttpBodyKind::NONE;
+    body_len_ = 0;
+    body_ram_ = 0;
+    body_progmem_ = 0;
+    body_reader_ = 0;
+    body_reader_ctx_ = 0;
 }
 
 void HttpResponse::set_status(uint16_t status)
@@ -66,74 +73,6 @@ HttpErr HttpResponse::set_content_type(const char *value)
     return set_header("Content-Type", value);
 }
 
-HttpErr HttpResponse::append(const char *s)
-{
-    return append_bytes(reinterpret_cast<const uint8_t *>(s), strlen(s));
-}
-
-HttpErr HttpResponse::append_bytes(const uint8_t *data, size_t len)
-{
-    if (buffer_ == 0 || data == 0 || data_len_ + len > buffer_len_) {
-        return HttpErr::SEND_FAILED;
-    }
-    memcpy(buffer_ + data_len_, data, len);
-    data_len_ += len;
-    if (data_len_ < buffer_len_) {
-        buffer_[data_len_] = 0;
-    }
-    return HttpErr::OK;
-}
-
-HttpErr HttpResponse::append_uint(size_t value)
-{
-    char tmp[16];
-    snprintf(tmp, sizeof(tmp), "%lu", static_cast<unsigned long>(value));
-    return append(tmp);
-}
-
-HttpErr HttpResponse::build_headers(size_t body_len, const char *content_type)
-{
-    HttpErr err;
-
-    err = append("HTTP/1.1 ");
-    if (err != HttpErr::OK) return err;
-    err = append_uint(status_);
-    if (err != HttpErr::OK) return err;
-    err = append(" ");
-    if (err != HttpErr::OK) return err;
-    err = append(http_status_reason(status_));
-    if (err != HttpErr::OK) return err;
-    err = append("\r\n");
-    if (err != HttpErr::OK) return err;
-
-    if (find_header("Content-Type") < 0 && content_type != 0 && content_type[0] != '\0') {
-        err = append("Content-Type: ");
-        if (err != HttpErr::OK) return err;
-        err = append(content_type);
-        if (err != HttpErr::OK) return err;
-        err = append("\r\n");
-        if (err != HttpErr::OK) return err;
-    }
-
-    for (uint8_t i = 0; i < header_count_; i++) {
-        err = append(header_names_[i]);
-        if (err != HttpErr::OK) return err;
-        err = append(": ");
-        if (err != HttpErr::OK) return err;
-        err = append(header_values_[i]);
-        if (err != HttpErr::OK) return err;
-        err = append("\r\n");
-        if (err != HttpErr::OK) return err;
-    }
-
-    err = append("Content-Length: ");
-    if (err != HttpErr::OK) return err;
-    err = append_uint(body_len);
-    if (err != HttpErr::OK) return err;
-    err = append("\r\nConnection: close\r\n\r\n");
-    return err;
-}
-
 HttpErr HttpResponse::send(const char *text)
 {
     if (text == 0) {
@@ -144,24 +83,7 @@ HttpErr HttpResponse::send(const char *text)
 
 HttpErr HttpResponse::send(const uint8_t *data, size_t len, const char *content_type)
 {
-    if (sent_) {
-        return HttpErr::ALREADY_SENT;
-    }
-    if (data == 0 && len != 0) {
-        return HttpErr::INVALID_ARG;
-    }
-
-    data_len_ = 0;
-    HttpErr err = build_headers(len, content_type);
-    if (err != HttpErr::OK) {
-        return err;
-    }
-    err = append_bytes(data, len);
-    if (err != HttpErr::OK) {
-        return err;
-    }
-    sent_ = true;
-    return HttpErr::OK;
+    return finalize_descriptor(HttpBodyKind::RAM, len, content_type, data, 0, 0, 0);
 }
 
 HttpErr HttpResponse::send_json(const char *json)
@@ -174,22 +96,105 @@ HttpErr HttpResponse::send_html(const char *html)
     return send(reinterpret_cast<const uint8_t *>(html), html != 0 ? strlen(html) : 0, "text/html; charset=utf-8");
 }
 
+HttpErr HttpResponse::send_progmem(const uint8_t *data_progmem, size_t len, const char *content_type)
+{
+    return finalize_descriptor(HttpBodyKind::PROGMEM, len, content_type, 0, data_progmem, 0, 0);
+}
+
+HttpErr HttpResponse::send_html_progmem(const char *html_progmem)
+{
+    if (html_progmem == 0) {
+        return HttpErr::INVALID_ARG;
+    }
+    return send_progmem(reinterpret_cast<const uint8_t *>(html_progmem),
+                        strlen(html_progmem),
+                        "text/html; charset=utf-8");
+}
+
+HttpErr HttpResponse::send_stream(HttpBodyReader reader,
+                                  void *ctx,
+                                  size_t content_length,
+                                  const char *content_type)
+{
+    return finalize_descriptor(HttpBodyKind::CALLBACK,
+                               content_length,
+                               content_type,
+                               0,
+                               0,
+                               reader,
+                               ctx);
+}
+
 HttpErr HttpResponse::end(uint16_t status)
 {
     if (sent_) {
         return HttpErr::ALREADY_SENT;
     }
     status_ = status;
-    data_len_ = 0;
-    HttpErr err = build_headers(0, "");
-    if (err != HttpErr::OK) {
-        return err;
-    }
-    sent_ = true;
-    return HttpErr::OK;
+    return finalize_descriptor(HttpBodyKind::NONE, 0, "", 0, 0, 0, 0);
 }
 
 bool HttpResponse::sent() const { return sent_; }
 const uint8_t *HttpResponse::data() const { return buffer_; }
 size_t HttpResponse::data_len() const { return data_len_; }
 uint16_t HttpResponse::status() const { return status_; }
+HttpBodyKind HttpResponse::body_kind() const { return body_kind_; }
+size_t HttpResponse::body_length() const { return body_len_; }
+const uint8_t *HttpResponse::body_ram() const { return body_ram_; }
+const uint8_t *HttpResponse::body_progmem() const { return body_progmem_; }
+HttpBodyReader HttpResponse::body_reader() const { return body_reader_; }
+void *HttpResponse::body_reader_ctx() const { return body_reader_ctx_; }
+const char *HttpResponse::content_type() const { return content_type_; }
+
+HttpErr HttpResponse::finalize_descriptor(HttpBodyKind kind,
+                                          size_t body_len,
+                                          const char *content_type,
+                                          const uint8_t *ram,
+                                          const uint8_t *progmem,
+                                          HttpBodyReader reader,
+                                          void *reader_ctx)
+{
+    if (sent_) {
+        return HttpErr::ALREADY_SENT;
+    }
+    if ((kind == HttpBodyKind::RAM && ram == 0 && body_len != 0) ||
+        (kind == HttpBodyKind::PROGMEM && progmem == 0 && body_len != 0) ||
+        (kind == HttpBodyKind::CALLBACK && reader == 0 && body_len != 0)) {
+        return HttpErr::INVALID_ARG;
+    }
+
+    if (content_type == 0) {
+        content_type = "";
+    }
+    strncpy(content_type_, content_type, HTTP_RESP_HEADER_VALUE_MAX);
+    content_type_[HTTP_RESP_HEADER_VALUE_MAX] = '\0';
+
+    body_kind_ = kind;
+    body_len_ = body_len;
+    body_ram_ = ram;
+    body_progmem_ = progmem;
+    body_reader_ = reader;
+    body_reader_ctx_ = reader_ctx;
+
+    sent_ = true;
+    data_len_ = 0;
+    return HttpErr::OK;
+}
+
+uint8_t HttpResponse::header_count() const { return header_count_; }
+
+const char *HttpResponse::header_name(uint8_t index) const
+{
+    if (index >= header_count_) {
+        return 0;
+    }
+    return header_names_[index];
+}
+
+const char *HttpResponse::header_value(uint8_t index) const
+{
+    if (index >= header_count_) {
+        return 0;
+    }
+    return header_values_[index];
+}

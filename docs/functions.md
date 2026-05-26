@@ -96,6 +96,16 @@ French version: [functions.fr.md](functions.fr.md)
 `HttpErr send_html(const char *html)`
 : Sends a `text/html; charset=utf-8` response.
 
+`HttpErr send_progmem(const uint8_t *data_progmem, size_t len, const char *content_type)`
+: Sends a response whose body source is flash/PROGMEM data.
+
+`HttpErr send_html_progmem(const char *html_progmem)`
+: Convenience wrapper for HTML stored in flash/PROGMEM.
+
+`HttpErr send_stream(HttpBodyReader reader, void *ctx, size_t content_length, const char *content_type)`
+: Sends a streamed response body from callback chunks with fixed
+  `Content-Length`.
+
 `HttpErr end(uint16_t status = 204)`
 : Sends an empty response with the given status.
 
@@ -103,8 +113,7 @@ French version: [functions.fr.md](functions.fr.md)
 : Returns whether the response has already been generated.
 
 `const uint8_t *data() const`, `size_t data_len() const`, `uint16_t status() const`
-: Expose the generated response buffer, length, and status for the engine and
-  host tests.
+: Compatibility accessors. The engine now builds and streams TX output itself.
 
 ## HttpFsBackend
 

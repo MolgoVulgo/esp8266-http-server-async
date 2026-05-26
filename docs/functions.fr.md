@@ -97,6 +97,15 @@ Version anglaise prioritaire : [functions.md](functions.md)
 `HttpErr send_html(const char *html)`
 : Envoie une reponse `text/html; charset=utf-8`.
 
+`HttpErr send_progmem(const uint8_t *data_progmem, size_t len, const char *content_type)`
+: Envoie une reponse dont le body provient de donnees flash/PROGMEM.
+
+`HttpErr send_html_progmem(const char *html_progmem)`
+: Raccourci pour du HTML stocke en flash/PROGMEM.
+
+`HttpErr send_stream(HttpBodyReader reader, void *ctx, size_t content_length, const char *content_type)`
+: Envoie un body stream par callback avec `Content-Length` fixe.
+
 `HttpErr end(uint16_t status = 204)`
 : Envoie une reponse vide avec le statut donne.
 
@@ -104,8 +113,7 @@ Version anglaise prioritaire : [functions.md](functions.md)
 : Indique si la reponse a deja ete generee.
 
 `const uint8_t *data() const`, `size_t data_len() const`, `uint16_t status() const`
-: Exposent le buffer genere, sa longueur et le statut pour le moteur et les
-  tests host.
+: Accesseurs de compatibilite. Le moteur construit et stream maintenant le TX.
 
 ## HttpFsBackend
 

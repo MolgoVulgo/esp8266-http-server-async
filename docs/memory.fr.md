@@ -19,7 +19,7 @@ compile-time dans [include/http_config.h](../include/http_config.h).
 | `HTTP_BODY_MAX_SIZE` | 1024 | Taille maximale acceptee du body. |
 | `HTTP_BODY_READ_CHUNK` | 128 | Taille de chunk reservee pour lecture body. |
 | `HTTP_QUERY_MAX_SIZE` | 128 | Longueur de query string brute. |
-| `HTTP_RESPONSE_BUFFER_SIZE` | 512 | Buffer de reponse complete, headers inclus. |
+| `HTTP_RESPONSE_BUFFER_SIZE` | 512 | Buffer de chunk TX HTTP utilise par le moteur. |
 | `HTTP_FS_BLOCK_SIZE` | 512 | Macro de taille de bloc fichier statique. |
 | `HTTP_RESP_HEADER_MAX` | 6 | Headers de reponse personnalises. |
 | `HTTP_RESP_HEADER_NAME_MAX` | 31 | Longueur d'un nom de header de reponse. |
@@ -41,14 +41,11 @@ Augmenter `HTTP_MAX_CLIENTS`, `HTTP_BODY_MAX_SIZE` ou
 
 ## Contrainte de reponse
 
-La reponse generee complete doit tenir dans `HTTP_RESPONSE_BUFFER_SIZE`. Cela
-inclut la ligne de statut, tous les headers, les separateurs CRLF et le body.
-
-Le buffer de reponse par defaut de 512 octets est volontairement petit pour
-rester aligne avec le modele TX du transport utilise en V1.
+Les reponses sont emises en streaming par `HttpEngine` (headers puis chunks de
+body). `HTTP_RESPONSE_BUFFER_SIZE` est une taille de travail par client, pas la
+taille maximale d'une reponse.
 
 ## Contrainte fichiers statiques
 
-Les reponses de fichiers statiques utilisent le meme buffer de reponse. Le corps
-du fichier doit tenir apres les headers. Avec les valeurs par defaut, la
-capacite utile est d'environ `HTTP_RESPONSE_BUFFER_SIZE - 120` octets.
+Les fichiers statiques sont lus et emis par morceaux. Un fichier n'a plus
+besoin de tenir dans un buffer unique.

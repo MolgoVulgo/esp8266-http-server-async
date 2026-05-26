@@ -67,13 +67,6 @@ Les extensions inconnues utilisent `application/octet-stream`.
 
 ## Limite de taille
 
-En V1, un fichier statique doit tenir dans une reponse HTTP complete : headers
-plus corps. La limite est `HTTP_RESPONSE_BUFFER_SIZE`.
-
-Avec la configuration par defaut, `HTTP_RESPONSE_BUFFER_SIZE` vaut 512 octets.
-La capacite utile pour le corps de fichier est d'environ
-`HTTP_RESPONSE_BUFFER_SIZE - 120` octets, selon la longueur des headers et du
-MIME.
-
-Si le fichier est trop grand, le moteur ferme le handle backend et retourne
-`500 Internal Server Error`.
+Les fichiers statiques sont servis par chunks. La taille d'un fichier n'est
+plus limitee par `HTTP_RESPONSE_BUFFER_SIZE`; cette macro borne seulement la
+taille des chunks TX par client.

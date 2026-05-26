@@ -19,7 +19,7 @@ The memory model is static and bounded. Most limits are compile-time macros in
 | `HTTP_BODY_MAX_SIZE` | 1024 | Maximum accepted request body. |
 | `HTTP_BODY_READ_CHUNK` | 128 | Reserved body read chunk size. |
 | `HTTP_QUERY_MAX_SIZE` | 128 | Raw query string length. |
-| `HTTP_RESPONSE_BUFFER_SIZE` | 512 | Complete response buffer, headers included. |
+| `HTTP_RESPONSE_BUFFER_SIZE` | 512 | HTTP TX chunk buffer used by the engine. |
 | `HTTP_FS_BLOCK_SIZE` | 512 | Static file block size macro. |
 | `HTTP_RESP_HEADER_MAX` | 6 | Custom response headers. |
 | `HTTP_RESP_HEADER_NAME_MAX` | 31 | Custom response header name length. |
@@ -41,14 +41,11 @@ Increasing `HTTP_MAX_CLIENTS`, `HTTP_BODY_MAX_SIZE`, or
 
 ## Response Constraint
 
-The complete generated response must fit in `HTTP_RESPONSE_BUFFER_SIZE`.
-This includes the status line, all headers, CRLF separators, and body.
-
-The default 512-byte response buffer is intentionally small to stay aligned with
-the transport TX model used by V1.
+Responses are streamed by `HttpEngine` (headers first, then body chunks).
+`HTTP_RESPONSE_BUFFER_SIZE` is the per-client working chunk size, not the
+maximum response size.
 
 ## Static File Constraint
 
-Static file responses use the same response buffer. A file body must fit after
-headers. With defaults, practical static file body capacity is roughly
-`HTTP_RESPONSE_BUFFER_SIZE - 120` bytes.
+Static files are read and sent in chunks. A file no longer needs to fit in one
+buffer.

@@ -8,6 +8,8 @@
 struct HttpTransportMock {
     HttpEngine engine;
     int slot;
+    uint8_t out[4096];
+    size_t out_len;
 };
 
 void http_transport_mock_init(HttpTransportMock *mock);

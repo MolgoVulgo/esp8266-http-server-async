@@ -26,9 +26,8 @@
 #endif
 
 /* Maximum accepted request body size for POST/PUT.
- * Independent from HTTP_RESPONSE_BUFFER_SIZE: response bodies must still fit
- * in HTTP_RESPONSE_BUFFER_SIZE including headers. Keeping a larger request
- * body limit is useful when handlers process data without echoing it.
+ * Independent from HTTP_RESPONSE_BUFFER_SIZE because responses are streamed
+ * by HttpEngine in V1 streaming mode.
  */
 #ifndef HTTP_BODY_MAX_SIZE
 #define HTTP_BODY_MAX_SIZE 1024
@@ -64,10 +63,9 @@
 #define HTTP_RESP_HEADER_VALUE_MAX 96
 #endif
 
-/* Maximum complete HTTP response size, including headers and body.
- * Must stay <= TCP_TX_BUFFER_SIZE from esp8266-tcp-transport in V1 because
- * the HTTP adapter sends one complete response into the transport TX buffer.
- * Static file body capacity is roughly HTTP_RESPONSE_BUFFER_SIZE - 120 bytes.
+/* HTTP TX chunk buffer size used by HttpEngine.
+ * This is no longer the maximum response size; large responses and static
+ * files are emitted progressively in chunks.
  */
 #ifndef HTTP_RESPONSE_BUFFER_SIZE
 #define HTTP_RESPONSE_BUFFER_SIZE 512
@@ -90,6 +88,13 @@
 
 #ifndef HTTP_DEBUG
 #define HTTP_DEBUG 0
+#endif
+
+/* Set to 1 when esp8266-tcp-transport exposes tcp_server_callbacks_t::on_drain.
+ * Keeps this library source-compatible with older transport revisions.
+ */
+#ifndef HTTP_TCP_TRANSPORT_HAS_ON_DRAIN
+#define HTTP_TCP_TRANSPORT_HAS_ON_DRAIN 0
 #endif
 
 #ifndef HTTP_ROUTE_PARAM_MAX

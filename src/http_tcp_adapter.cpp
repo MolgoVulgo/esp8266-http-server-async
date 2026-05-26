@@ -17,6 +17,33 @@
 static HttpEngine *g_engine = 0;
 
 #ifndef HTTP_TCP_ADAPTER_STUB
+static void flush_tx(tcp_conn_t *conn, int slot)
+{
+    while (true) {
+        if (g_engine->tx_len(slot) == 0) {
+            HttpErr err = g_engine->on_drain(slot);
+            if (err != HttpErr::OK) {
+                HTTP_DBG("fill tx slot=%d err=%d", slot, (int)err);
+                break;
+            }
+        }
+        size_t pending = g_engine->tx_len(slot);
+        if (pending == 0) {
+            break;
+        }
+        size_t sent = tcp_send(conn, g_engine->tx_data(slot), pending);
+        HTTP_DBG("tx slot=%d len=%u sent=%u", slot, (unsigned)pending, (unsigned)sent);
+        g_engine->on_bytes_sent(slot, sent);
+        if (sent == 0 || sent < pending) {
+            break;
+        }
+    }
+    if (g_engine->ready_to_close(slot)) {
+        int close_ret = tcp_close_after_drain(conn);
+        HTTP_DBG("close after drain slot=%d ret=%d", slot, close_ret);
+    }
+}
+
 static void on_connect(tcp_conn_t *conn)
 {
     if (g_engine == 0) {
@@ -52,18 +79,26 @@ static void on_data(tcp_conn_t *conn, const uint8_t *buf, size_t len)
     if (err != HttpErr::OK) {
         HTTP_DBG("on_data slot=%d err=%d", slot, (int)err);
     }
-    if (g_engine->tx_len(slot) > 0) {
-        size_t sent = tcp_send(conn, g_engine->tx_data(slot), g_engine->tx_len(slot));
-        HTTP_DBG("tx slot=%d len=%u sent=%u",
-                 slot,
-                 (unsigned)g_engine->tx_len(slot),
-                 (unsigned)sent);
-    }
-    if (g_engine->close_after_send(slot)) {
-        int close_ret = tcp_close_after_drain(conn);
-        HTTP_DBG("close after drain slot=%d ret=%d", slot, close_ret);
-    }
+    flush_tx(conn, slot);
 }
+
+#if HTTP_TCP_TRANSPORT_HAS_ON_DRAIN
+static void on_drain(tcp_conn_t *conn)
+{
+    if (g_engine == 0) {
+        HTTP_DBG("drain without engine");
+        tcp_close(conn);
+        return;
+    }
+    int slot = g_engine->find_slot(conn);
+    if (slot < 0) {
+        HTTP_DBG("drain without slot");
+        tcp_close(conn);
+        return;
+    }
+    flush_tx(conn, slot);
+}
+#endif
 
 static void on_close(tcp_conn_t *conn)
 {
@@ -91,11 +126,14 @@ HttpErr http_tcp_adapter_start(uint16_t port, uint8_t max_clients, HttpEngine *e
     }
     g_engine = engine;
 #ifndef HTTP_TCP_ADAPTER_STUB
-    tcp_server_callbacks_t callbacks;
+    tcp_server_callbacks_t callbacks = {};
     callbacks.on_connect = on_connect;
     callbacks.on_data = on_data;
     callbacks.on_close = on_close;
     callbacks.on_error = on_error;
+#if HTTP_TCP_TRANSPORT_HAS_ON_DRAIN
+    callbacks.on_drain = on_drain;
+#endif
     int r = tcp_server_start(port, max_clients, &callbacks);
     HTTP_DBG("start port=%u max_clients=%u ret=%d",
              (unsigned)port,

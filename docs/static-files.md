@@ -65,12 +65,5 @@ Unknown extensions use `application/octet-stream`.
 
 ## Size Limit
 
-In V1, a static file must fit in one complete HTTP response: headers plus body.
-The limit is `HTTP_RESPONSE_BUFFER_SIZE`.
-
-With the default configuration, `HTTP_RESPONSE_BUFFER_SIZE` is 512 bytes. The
-usable file body capacity is roughly `HTTP_RESPONSE_BUFFER_SIZE - 120` bytes,
-depending on header and MIME length.
-
-If the file is too large, the engine closes the backend handle and returns
-`500 Internal Server Error`.
+Static files are served in chunks. File size is no longer limited by
+`HTTP_RESPONSE_BUFFER_SIZE`; this macro only bounds per-client TX chunk size.
